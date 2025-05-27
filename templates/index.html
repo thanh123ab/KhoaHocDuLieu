@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <title>Dự báo dân số với ARIMA</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --background: #ecf0f3;
+            --card-bg: #ffffff;
+            --text-color: #333;
+            --error-color: #e74c3c;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 40px 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--background);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 25px;
+        }
+
+        form {
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 10px 14px;
+            margin-bottom: 20px;
+            border: 1.6px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+            transition: border-color 0.25s ease;
+        }
+
+        select:focus, input[type="number"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            font-size: 16px;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #217dbb;
+        }
+
+        .error {
+            margin-top: 15px;
+            color: var(--error-color);
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .result {
+            margin-top: 40px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            max-width: 900px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .result h3 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 20px 10px;
+            }
+
+            form {
+                padding: 20px;
+            }
+
+            .result {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Dự báo dân số bằng mô hình ARIMA</h2>
+
+    <form method="post" novalidate>
+        <label for="country">Chọn quốc gia</label>
+        <select id="country" name="country" required>
+            <option value="">-- Chọn quốc gia --</option>
+            {% for c in country_list %}
+                <option value="{{ c }}" {% if c == selected_country %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+
+        <label for="years">Số năm dự báo</label>
+        <input type="number" id="years" name="years" value="{{ selected_years or 10 }}" min="1" max="50" />
+
+        <input type="submit" value="Dự báo" />
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if table_data %}
+        <div class="result">
+            <h3>Dữ liệu dân số chi tiết</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th colspan="2">Dân số thực tế</th>
+                        <th colspan="2">Dân số dự báo (ARIMA)</th>
+                    </tr>
+                    <tr>
+                        <th>Năm</th>
+                        <th>Dân số</th>
+                        <th>Năm</th>
+                        <th>Dân số</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set left = [] %}
+                    {% set right = [] %}
+                    {% for year, actual, forecast in table_data %}
+                        {% if actual %}
+                            {% set _ = left.append((year, actual)) %}
+                        {% elif forecast %}
+                            {% set _ = right.append((year, forecast)) %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set max_len = [left|length, right|length]|max %}
+                    {% for i in range(max_len) %}
+                        <tr>
+                            <td>{{ left[i][0] if i < left|length else '' }}</td>
+                            <td>{{ "{:,}".format(left[i][1]) if i < left|length else '' }}</td>
+                            <td>{{ right[i][0] if i < right|length else '' }}</td>
+                            <td>{{ "{:,}".format(right[i][1]) if i < right|length else '' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
+    {% if plot_data %}
+        <div class="result">
+            <h3>Biểu đồ dân số</h3>
+            <img src="data:image/png;base64,{{ plot_data }}" alt="Biểu đồ dân số" />
+        </div>
+    {% endif %}
+</body>
+</html>
