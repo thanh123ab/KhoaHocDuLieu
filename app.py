@@ -4,7 +4,6 @@ import pandas as pd
 
 app = Flask(__name__)
 
-# Đọc danh sách quốc gia từ file world_population.csv
 df = pd.read_csv(r"C:\Users\Asus\Downloads\archive\world_population.csv")
 country_list = sorted(df['Country/Territory'].unique().tolist())
 
